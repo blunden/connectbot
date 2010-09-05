@@ -264,14 +264,29 @@ public class SSH extends AbsTransport implements ConnectionMonitor, InteractiveC
 					bridge.outputLine(manager.res.getString(R.string.terminal_auth_ki_fail));
 				}
 			} else if (connection.isAuthMethodAvailable(host.getUsername(), AUTH_PASSWORD)) {
-				bridge.outputLine(manager.res.getString(R.string.terminal_auth_pass));
-				String password = bridge.getPromptHelper().requestStringPrompt(null,
-						manager.res.getString(R.string.prompt_password));
-				if (password != null
-						&& connection.authenticateWithPassword(host.getUsername(), password)) {
-					finishConnection();
+				//bridge.outputLine(manager.res.getString(R.string.terminal_auth_pass));
+				//String password = bridge.getPromptHelper().requestStringPrompt(null,
+				//		manager.res.getString(R.string.prompt_password));
+				//if (password != null
+				//		&& connection.authenticateWithPassword(host.getUsername(), password)) {
+				//	finishConnection();
+				if (host.getPassword() != null && !HostBean.NOSAVE.equals(host.getPassword())
+						&& connection.authenticateWithPassword(host.getUsername(), host.getPassword())) {
+ 					finishConnection();				
 				} else {
-					bridge.outputLine(manager.res.getString(R.string.terminal_auth_pass_fail));
+					//bridge.outputLine(manager.res.getString(R.string.terminal_auth_pass_fail));
+					bridge.outputLine(manager.res.getString(R.string.terminal_auth_pass));
+					String password = bridge.getPromptHelper().requestStringPrompt(null,
+							manager.res.getString(R.string.prompt_password));
+					if (password != null && connection.authenticateWithPassword(host.getUsername(), password)) {
+						if (!HostBean.NOSAVE.equals(host.getPassword())) {
+							host.setPassword(password);
+							manager.hostdb.saveHostPassword(host.getId(), host.getPassword());
+						}
+						finishConnection();
+					} else {
+						bridge.outputLine(manager.res.getString(R.string.terminal_auth_pass_fail));
+					}
 				}
 			} else {
 				bridge.outputLine(manager.res.getString(R.string.terminal_auth_fail));

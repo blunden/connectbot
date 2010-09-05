@@ -1,4 +1,4 @@
-/*
+/**
  * ConnectBot: simple, powerful, open-source SSH client for Android
  * Copyright 2007 Kenny Root, Jeffrey Sharkey
  *
@@ -54,7 +54,6 @@ public class HostEditorActivity extends PreferenceActivity implements OnSharedPr
 		protected final long id;
 
 		protected Map<String, String> values = new HashMap<String, String>();
-//		protected Map<String, String> pubkeys = new HashMap<String, String>();
 
 		public CursorPreferenceHack(String table, long id) {
 			this.table = table;
@@ -76,27 +75,14 @@ public class HostEditorActivity extends PreferenceActivity implements OnSharedPr
 					String key = cursor.getColumnName(i);
 					if(key.equals(HostDatabase.FIELD_HOST_HOSTKEY)) continue;
 					String value = cursor.getString(i);
+					if (key.equals(HostDatabase.FIELD_HOST_PASSWORD)) {
+						value = HostBean.NOSAVE.equals(value) ? "false" : "true";
+					}
 					values.put(key, value);
 				}
 			}
 			cursor.close();
 			db.close();
-
-//			db = pubkeydb.getReadableDatabase();
-//			cursor = db.query(PubkeyDatabase.TABLE_PUBKEYS,
-//					new String[] { "_id", PubkeyDatabase.FIELD_PUBKEY_NICKNAME },
-//					null, null, null, null, null);
-//
-//			if (cursor.moveToFirst()) {
-//				do {
-//					String pubkeyid = String.valueOf(cursor.getLong(0));
-//					String value = cursor.getString(1);
-//					pubkeys.put(pubkeyid, value);
-//				} while (cursor.moveToNext());
-//			}
-//
-//			cursor.close();
-//			db.close();
 		}
 
 		public boolean contains(String key) {
@@ -131,6 +117,10 @@ public class HostEditorActivity extends PreferenceActivity implements OnSharedPr
 			}
 
 			public android.content.SharedPreferences.Editor putBoolean(String key, boolean value) {
+				if (key.equals(HostDatabase.FIELD_HOST_PASSWORD)) {
+				//Log.d("HostEditor", value + ":" + key);
+					return this.putString(key, value ? "" : HostBean.NOSAVE);
+				}
 				return this.putString(key, Boolean.toString(value));
 			}
 

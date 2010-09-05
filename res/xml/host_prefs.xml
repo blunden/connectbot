@@ -119,6 +119,12 @@
 			android:title="@string/hostpref_port_title"
 			android:numeric="integer"
 			/>
+		
+		<CheckBoxPreference
+			android:key="password"
+			android:title="@string/hostpref_password_title"
+			android:summary="@string/hostpref_password_summary"
+			/>
 
 	</PreferenceCategory>
 

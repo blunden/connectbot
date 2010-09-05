@@ -461,7 +461,7 @@
 	<!-- Displayed in the notification bar that connections are active -->
 	<string name="app_is_running">ConnectBot is running</string>
 	
-	 <!-- Swipe type -->
+	<!-- Swipe type -->
 	<string name="pref_swipe_title">Swipe Left/Right</string>
 	<string name="pref_swipe_summary">Defines swipe type</string>
 	<string name="list_swipe_default">Default</string>
@@ -475,4 +475,7 @@
 	<string name="color_green">green</string>
 	<string name="color_blue">blue</string>
 	<string name="color_gray">gray</string>
+	
+	<string name="hostpref_password_title">Autosave password</string>
+	<string name="hostpref_password_summary">If unchecked, password will not be saved.</string>
 </resources>

@@ -47,12 +47,13 @@ public class HostDatabase extends RobustSQLiteOpenHelper {
 	public final static String TAG = "ConnectBot.HostDatabase";
 
 	public final static String DB_NAME = "hosts";
-	public final static int DB_VERSION = 22;
+	public final static int DB_VERSION = 23; //22 egentligen
 
 	public final static String TABLE_HOSTS = "hosts";
 	public final static String FIELD_HOST_NICKNAME = "nickname";
 	public final static String FIELD_HOST_PROTOCOL = "protocol";
 	public final static String FIELD_HOST_USERNAME = "username";
+	public final static String FIELD_HOST_PASSWORD = "password";
 	public final static String FIELD_HOST_HOSTNAME = "hostname";
 	public final static String FIELD_HOST_PORT = "port";
 	public final static String FIELD_HOST_HOSTKEYALGO = "hostkeyalgo";
@@ -151,6 +152,7 @@ public class HostDatabase extends RobustSQLiteOpenHelper {
 				+ FIELD_HOST_NICKNAME + " TEXT, "
 				+ FIELD_HOST_PROTOCOL + " TEXT DEFAULT 'ssh', "
 				+ FIELD_HOST_USERNAME + " TEXT, "
+				+ FIELD_HOST_PASSWORD + " TEXT, "
 				+ FIELD_HOST_HOSTNAME + " TEXT, "
 				+ FIELD_HOST_PORT + " INTEGER, "
 				+ FIELD_HOST_HOSTKEYALGO + " TEXT, "
@@ -256,6 +258,9 @@ public class HostDatabase extends RobustSQLiteOpenHelper {
 			db.execSQL("DROP TABLE " + TABLE_COLOR_DEFAULTS);
 			db.execSQL(CREATE_TABLE_COLOR_DEFAULTS);
 			db.execSQL(CREATE_TABLE_COLOR_DEFAULTS_INDEX);
+		case 22:
+			db.execSQL("ALTER TABLE " + TABLE_HOSTS 
+					+ " ADD COLUMN " + FIELD_HOST_PASSWORD + " TEXT");
 		}
 	}
 
@@ -367,6 +372,7 @@ public class HostDatabase extends RobustSQLiteOpenHelper {
 			COL_NICKNAME = c.getColumnIndexOrThrow(FIELD_HOST_NICKNAME),
 			COL_PROTOCOL = c.getColumnIndexOrThrow(FIELD_HOST_PROTOCOL),
 			COL_USERNAME = c.getColumnIndexOrThrow(FIELD_HOST_USERNAME),
+			COL_PASSWORD = c.getColumnIndexOrThrow(FIELD_HOST_PASSWORD),
 			COL_HOSTNAME = c.getColumnIndexOrThrow(FIELD_HOST_HOSTNAME),
 			COL_PORT = c.getColumnIndexOrThrow(FIELD_HOST_PORT),
 			COL_LASTCONNECT = c.getColumnIndexOrThrow(FIELD_HOST_LASTCONNECT),
@@ -390,6 +396,7 @@ public class HostDatabase extends RobustSQLiteOpenHelper {
 			host.setNickname(c.getString(COL_NICKNAME));
 			host.setProtocol(c.getString(COL_PROTOCOL));
 			host.setUsername(c.getString(COL_USERNAME));
+			host.setPassword(c.getString(COL_PASSWORD));
 			host.setHostname(c.getString(COL_HOSTNAME));
 			host.setPort(c.getInt(COL_PORT));
 			host.setLastConnect(c.getLong(COL_LASTCONNECT));
@@ -521,6 +528,26 @@ public class HostDatabase extends RobustSQLiteOpenHelper {
 					FIELD_HOST_HOSTNAME + " = ? AND " + FIELD_HOST_PORT + " = ?",
 					new String[] { hostname, String.valueOf(port) });
 			Log.d(TAG, String.format("Finished saving hostkey information for '%s'", hostname));
+
+			db.close();
+		}
+	}
+	
+	/**
+	 * Save password for host.
+	 * @param hostId
+	 * @param password
+	 */
+	 public void saveHostPassword(long hostId, String password) {
+		ContentValues values = new ContentValues();
+		values.put(FIELD_HOST_PASSWORD, password);
+	
+		synchronized (dbLock) {
+			SQLiteDatabase db = getReadableDatabase();
+
+			db.update(TABLE_HOSTS, values,
+				"_id = ?", new String[] { String.valueOf(hostId) });
+			Log.d(TAG, String.format("Finished saving password for '%d'", hostId));
 
 			db.close();
 		}

@@ -28,11 +28,13 @@ import android.net.Uri;
  */
 public class HostBean extends AbstractBean {
 	public static final String BEAN_NAME = "host";
+	public static final String NOSAVE = "_nosave_";
 
 	/* Database fields */
 	private long id = -1;
 	private String nickname = null;
 	private String username = null;
+	private String password = NOSAVE;
 	private String hostname = null;
 	private int port = 22;
 	private String protocol = "ssh";
@@ -124,6 +126,13 @@ public class HostBean extends AbstractBean {
 			return null;
 		else
 			return hostKey.clone();
+	}
+	public String getPassword() {
+		return password;
+	}
+
+	public void setPassword(String password) {
+		this.password = password;
 	}
 	public void setLastConnect(long lastConnect) {
 		this.lastConnect = lastConnect;
@@ -218,6 +227,7 @@ public class HostBean extends AbstractBean {
 		values.put(HostDatabase.FIELD_HOST_NICKNAME, nickname);
 		values.put(HostDatabase.FIELD_HOST_PROTOCOL, protocol);
 		values.put(HostDatabase.FIELD_HOST_USERNAME, username);
+		values.put(HostDatabase.FIELD_HOST_PASSWORD, password);
 		values.put(HostDatabase.FIELD_HOST_HOSTNAME, hostname);
 		values.put(HostDatabase.FIELD_HOST_PORT, port);
 		values.put(HostDatabase.FIELD_HOST_HOSTKEYALGO, hostKeyAlgo);
@@ -313,5 +323,4 @@ public class HostBean extends AbstractBean {
 			.append(nickname);
 		return Uri.parse(sb.toString());
 	}
-
 }
