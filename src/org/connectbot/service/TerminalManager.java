@@ -135,6 +135,7 @@ public class TerminalManager extends Service implements BridgeDisconnectedListen
 		pubkeydb = new PubkeyDatabase(this);
 
 		// load all marked pubkeys into memory
+		updateSavingKeys();
 		List<PubkeyBean> pubkeys = pubkeydb.getAllStartPubkeys();
 
 		for (PubkeyBean pubkey : pubkeys) {
@@ -162,7 +163,6 @@ public class TerminalManager extends Service implements BridgeDisconnectedListen
 
 		connectivityManager = new ConnectivityReceiver(this, lockingWifi);
 
-		updateSavingKeys();
 	}
 
 	private void updateSavingKeys() {
@@ -364,7 +364,11 @@ public class TerminalManager extends Service implements BridgeDisconnectedListen
 	}
 
 	public void addKey(PubkeyBean pubkey, Object trileadKey) {
-		if (!savingKeys)
+		addKey(pubkey, trileadKey, false);
+	}
+
+	public void addKey(PubkeyBean pubkey, Object trileadKey, boolean force) {
+		if (!savingKeys && !force)
 			return;
 
 		removeKey(pubkey.getNickname());
@@ -485,6 +489,15 @@ public class TerminalManager extends Service implements BridgeDisconnectedListen
 		startService(new Intent(this, TerminalManager.class));
 
 		return binder;
+	}
+
+	@Override
+	public int onStartCommand(Intent intent, int flags, int startId) {
+		/*
+		 * We want this service to continue running until it is explicitly
+		 * stopped, so return sticky.
+		 */
+		return START_STICKY;
 	}
 
 	@Override

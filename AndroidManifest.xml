@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
 	package="org.connectbot"
-	android:versionName="1.7.0-rc2-mod-0.3"
-	android:versionCode="307"
+	android:versionName="1.7.1"
+	android:versionCode="353"
 	android:installLocation="auto">
+
+	<uses-sdk android:targetSdkVersion="11" android:minSdkVersion="3" />
 
 	<application
 		android:icon="@drawable/icon"
@@ -21,6 +23,13 @@
 			<intent-filter>
 				<action android:name="android.intent.action.CREATE_SHORTCUT" />
 				<category android:name="android.intent.category.DEFAULT" />
+			</intent-filter>
+			<intent-filter>
+				<action android:name="android.intent.action.PICK" />
+				<category android:name="android.intent.category.DEFAULT" />
+				<data android:scheme="ssh" />
+				<data android:scheme="telnet" />
+				<data android:scheme="local" />
 			</intent-filter>
 		</activity>
 
@@ -54,15 +63,16 @@
 			</intent-filter>
 		</activity>
 
-	</application>
+		<meta-data android:name="com.google.android.backup.api_key"
+			android:value="AEdPqrEAAAAIDlFz9nSUr2g0gSytW0t2cNnYAGHDkptlVohsBA" />
 
-	<uses-sdk android:targetSdkVersion="8" android:minSdkVersion="3" />
+	</application>
 
 	<uses-permission android:name="android.permission.INTERNET" />
 	<uses-permission android:name="android.permission.VIBRATE" />
-	<uses-permission android:name="android.permission.WAKE_LOCK" />
 	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+	<uses-permission android:name="android.permission.WAKE_LOCK" />
 
 	<supports-screens />
 </manifest>

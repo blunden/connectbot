@@ -14,19 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package com.trilead.ssh2.compression;
-
-/**
- * @author Kenny Root
- *
- */
-public interface ICompressor {
-	int getBufferSize();
-
-	int compress(byte[] buf, int start, int len, byte[] output);
-
-	byte[] uncompress(byte[] buf, int start, int[] len);
-
-	boolean canCompressPreauth();
+package org.connectbot;
+import android.os.StrictMode;
+public class StrictModeSetup {
+	public static void run() {
+		StrictMode.setThreadPolicy(StrictMode.ThreadPolicy.LAX);
+	}
 }

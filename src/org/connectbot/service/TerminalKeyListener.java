@@ -39,6 +39,7 @@ import de.mud.terminal.vt320;
  * @author kenny
  *
  */
+@SuppressWarnings("deprecation") // for ClipboardManager
 public class TerminalKeyListener implements OnKeyListener, OnSharedPreferenceChangeListener {
 	private static final String TAG = "ConnectBot.OnKeyListener";
 
@@ -56,6 +57,10 @@ public class TerminalKeyListener implements OnKeyListener, OnSharedPreferenceCha
 	public final static int META_ALT_MASK = META_ALT_ON | META_ALT_LOCK;
 	public final static int META_SHIFT_MASK = META_SHIFT_ON | META_SHIFT_LOCK;
 
+	// backport constants from api level 11
+	public final static int KEYCODE_ESCAPE = 111;
+	public final static int HC_META_CTRL_ON = 4096;
+
 	// All the transient key codes
 	public final static int META_TRANSIENT = META_CTRL_ON | META_ALT_ON
 			| META_SHIFT_ON;
@@ -64,14 +69,16 @@ public class TerminalKeyListener implements OnKeyListener, OnSharedPreferenceCha
 	private final TerminalBridge bridge;
 	private final VDUBuffer buffer;
 
-	protected KeyCharacterMap keymap = KeyCharacterMap.load(KeyCharacterMap.BUILT_IN_KEYBOARD);
-
 	private String keymode = null;
 	private boolean hardKeyboard = false;
 
 	private int metaState = 0;
 
+	private int mDeadKey = 0;
+
+	// TODO add support for the new API.
 	private ClipboardManager clipboard = null;
+
 	private boolean selectingForCopy = false;
 	private final SelectionArea selectionArea;
 
@@ -161,47 +168,66 @@ public class TerminalKeyListener implements OnKeyListener, OnSharedPreferenceCha
 
 			bridge.resetScrollPosition();
 
-			boolean printing = (keymap.isPrintingKey(keyCode) || keyCode == KeyEvent.KEYCODE_SPACE);
+			if (keyCode == KeyEvent.KEYCODE_UNKNOWN &&
+					event.getAction() == KeyEvent.ACTION_MULTIPLE) {
+				byte[] input = event.getCharacters().getBytes(encoding);
+				bridge.transport.write(input);
+				return true;
+			}
+
+			int curMetaState = event.getMetaState();
+			final int orgMetaState = curMetaState;
+
+			if ((metaState & META_SHIFT_MASK) != 0) {
+				curMetaState |= KeyEvent.META_SHIFT_ON;
+			}
+
+			if ((metaState & META_ALT_MASK) != 0) {
+				curMetaState |= KeyEvent.META_ALT_ON;
+			}
+
+			int key = event.getUnicodeChar(curMetaState);
+			// no hard keyboard?  ALT-k should pass through to below
+			if ((orgMetaState & KeyEvent.META_ALT_ON) != 0 &&
+					(!hardKeyboard || hardKeyboardHidden)) {
+				key = 0;
+			}
+
+			if ((key & KeyCharacterMap.COMBINING_ACCENT) != 0) {
+				mDeadKey = key & KeyCharacterMap.COMBINING_ACCENT_MASK;
+				return true;
+			}
+
+			if (mDeadKey != 0) {
+				key = KeyCharacterMap.getDeadChar(mDeadKey, keyCode);
+				mDeadKey = 0;
+			}
+
+			final boolean printing = (key != 0);
 
 			// otherwise pass through to existing session
 			// print normal keys
 			if (printing) {
-				int curMetaState = event.getMetaState();
-
 				metaState &= ~(META_SLASH | META_TAB);
 
-				if ((metaState & META_SHIFT_MASK) != 0) {
-					curMetaState |= KeyEvent.META_SHIFT_ON;
-					metaState &= ~META_SHIFT_ON;
+				// Remove shift and alt modifiers
+				final int lastMetaState = metaState;
+				metaState &= ~(META_SHIFT_ON | META_ALT_ON);
+				if (metaState != lastMetaState) {
 					bridge.redraw();
 				}
-
-				if ((metaState & META_ALT_MASK) != 0) {
-					curMetaState |= KeyEvent.META_ALT_ON;
-					metaState &= ~META_ALT_ON;
-					bridge.redraw();
-				}
-
-				int key = keymap.get(keyCode, curMetaState);
 
 				if ((metaState & META_CTRL_MASK) != 0) {
 					metaState &= ~META_CTRL_ON;
 					bridge.redraw();
 
+					// If there is no hard keyboard or there is a hard keyboard currently hidden,
+					// CTRL-1 through CTRL-9 will send F1 through F9
 					if ((!hardKeyboard || (hardKeyboard && hardKeyboardHidden))
 							&& sendFunctionKey(keyCode))
 						return true;
 
-					// Support CTRL-a through CTRL-z
-					if (key >= 0x61 && key <= 0x7A)
-						key -= 0x60;
-					// Support CTRL-A through CTRL-_
-					else if (key >= 0x41 && key <= 0x5F)
-						key -= 0x40;
-					else if (key == 0x20)
-						key = 0x00;
-					else if (key == 0x3F)
-						key = 0x7F;
+					key = keyAsControl(key);
 				}
 
 				// handle pressing f-keys
@@ -220,13 +246,30 @@ public class TerminalKeyListener implements OnKeyListener, OnSharedPreferenceCha
 				return true;
 			}
 
-			if (keyCode == KeyEvent.KEYCODE_UNKNOWN &&
-					event.getAction() == KeyEvent.ACTION_MULTIPLE) {
-				byte[] input = event.getCharacters().getBytes(encoding);
-				bridge.transport.write(input);
-				return true;
+			// send ctrl and meta-keys as appropriate
+			if (!hardKeyboard || hardKeyboardHidden) {
+				int k = event.getUnicodeChar(0);
+				int k0 = k;
+				boolean sendCtrl = false;
+				boolean sendMeta = false;
+				if (k != 0) {
+					if ((orgMetaState & HC_META_CTRL_ON) != 0) {
+						k = keyAsControl(k);
+						if (k != k0)
+							sendCtrl = true;
+						// send F1-F10 via CTRL-1 through CTRL-0
+						if (!sendCtrl && sendFunctionKey(keyCode))
+							return true;
+					} else if ((orgMetaState & KeyEvent.META_ALT_ON) != 0) {
+						sendMeta = true;
+						sendEscape();
+					}
+					if (sendMeta || sendCtrl) {
+						bridge.transport.write(k);
+						return true;
+					}
+				}
 			}
-
 			// try handling keymode shortcuts
 			if (hardKeyboard && !hardKeyboardHidden &&
 					event.getRepeatCount() == 0) {
@@ -276,6 +319,12 @@ public class TerminalKeyListener implements OnKeyListener, OnSharedPreferenceCha
 
 			// look for special chars
 			switch(keyCode) {
+			case KEYCODE_ESCAPE:
+				sendEscape();
+				return true;
+			case KeyEvent.KEYCODE_TAB:
+				bridge.transport.write(0x09);
+				return true;
 			case KeyEvent.KEYCODE_CAMERA:
 
 				// check to see which shortcut the camera button triggers
@@ -402,6 +451,22 @@ public class TerminalKeyListener implements OnKeyListener, OnSharedPreferenceCha
 		return false;
 	}
 
+	public int keyAsControl(int key) {
+		// Support CTRL-a through CTRL-z
+		if (key >= 0x61 && key <= 0x7A)
+			key -= 0x60;
+		// Support CTRL-A through CTRL-_
+		else if (key >= 0x41 && key <= 0x5F)
+			key -= 0x40;
+		// CTRL-space sends NULL
+		else if (key == 0x20)
+			key = 0x00;
+		// CTRL-? sends DEL
+		else if (key == 0x3F)
+			key = 0x7F;
+		return key;
+	}
+
 	public void sendEscape() {
 		((vt320)buffer).keyTyped(vt320.KEY_ESCAPE, ' ', 0);
 	}
@@ -486,6 +551,10 @@ public class TerminalKeyListener implements OnKeyListener, OnSharedPreferenceCha
 
 	public int getMetaState() {
 		return metaState;
+	}
+
+	public int getDeadKey() {
+		return mDeadKey;
 	}
 
 	public void setClipboardManager(ClipboardManager clipboard) {

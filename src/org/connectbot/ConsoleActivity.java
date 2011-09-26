@@ -43,7 +43,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
-import android.os.PowerManager;
 import android.preference.PreferenceManager;
 import android.text.ClipboardManager;
 import android.util.Log;
@@ -84,9 +83,9 @@ public class ConsoleActivity extends Activity {
 
 	protected static final int REQUEST_EDIT = 1;
 
-	private static final int CLICK_TIME = 250;
+	private static final int CLICK_TIME = 400;
 	private static final float MAX_CLICK_DISTANCE = 25f;
-	private static final int KEYBOARD_DISPLAY_TIME = 1250;
+	private static final int KEYBOARD_DISPLAY_TIME = 1500;
 
 	// Direction to shift the ViewFlipper
 	private static final int SHIFT_LEFT = 0;
@@ -98,7 +97,9 @@ public class ConsoleActivity extends Activity {
 
 	private SharedPreferences prefs = null;
 
-	private PowerManager.WakeLock wakelock = null;
+	// determines whether or not menuitem accelerators are bound
+	// otherwise they collide with an external keyboard's CTRL-char
+	private boolean hardKeyboard = false;
 
 	protected Uri requested;
 
@@ -256,9 +257,20 @@ public class ConsoleActivity extends Activity {
 		booleanPromptGroup.setVisibility(View.GONE);
 	}
 
+	// more like configureLaxMode -- enable network IO on UI thread
+	private void configureStrictMode() {
+		try {
+			Class.forName("android.os.StrictMode");
+			StrictModeSetup.run();
+		} catch (ClassNotFoundException e) {
+		}
+	}
 	@Override
 	public void onCreate(Bundle icicle) {
 		super.onCreate(icicle);
+		configureStrictMode();
+		hardKeyboard = getResources().getConfiguration().keyboard ==
+				Configuration.KEYBOARD_QWERTY;
 
 		this.setContentView(R.layout.act_console);
 
@@ -275,9 +287,6 @@ public class ConsoleActivity extends Activity {
 
 		// TODO find proper way to disable volume key beep if it exists.
 		setVolumeControlStream(AudioManager.STREAM_MUSIC);
-
-		PowerManager manager = (PowerManager)getSystemService(Context.POWER_SERVICE);
-		wakelock = manager.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK, TAG);
 
 		// handle requested console from incoming intent
 		requested = getIntent().getData();
@@ -674,7 +683,8 @@ public class ConsoleActivity extends Activity {
 		menu.setQwertyMode(true);
 
 		disconnect = menu.add(R.string.list_host_disconnect);
-		disconnect.setAlphabeticShortcut('w');
+		if (hardKeyboard)
+			disconnect.setAlphabeticShortcut('w');
 		if (!sessionOpen && disconnected)
 			disconnect.setTitle(R.string.console_menu_close);
 		disconnect.setEnabled(activeTerminal);
@@ -691,7 +701,8 @@ public class ConsoleActivity extends Activity {
 		});
 
 		copy = menu.add(R.string.console_menu_copy);
-		copy.setAlphabeticShortcut('c');
+		if (hardKeyboard)
+			copy.setAlphabeticShortcut('c');
 		copy.setIcon(android.R.drawable.ic_menu_set_as);
 		copy.setEnabled(activeTerminal);
 		copy.setOnMenuItemClickListener(new OnMenuItemClickListener() {
@@ -715,7 +726,8 @@ public class ConsoleActivity extends Activity {
 		});
 
 		paste = menu.add(R.string.console_menu_paste);
-		paste.setAlphabeticShortcut('v');
+		if (hardKeyboard)
+			paste.setAlphabeticShortcut('v');
 		paste.setIcon(android.R.drawable.ic_menu_edit);
 		paste.setEnabled(clipboard.hasText() && sessionOpen);
 		paste.setOnMenuItemClickListener(new OnMenuItemClickListener() {
@@ -734,7 +746,8 @@ public class ConsoleActivity extends Activity {
 		});
 
 		portForward = menu.add(R.string.console_menu_portforwards);
-		portForward.setAlphabeticShortcut('f');
+		if (hardKeyboard)
+			portForward.setAlphabeticShortcut('f');
 		portForward.setIcon(android.R.drawable.ic_menu_manage);
 		portForward.setEnabled(sessionOpen && canForwardPorts);
 		portForward.setOnMenuItemClickListener(new OnMenuItemClickListener() {
@@ -750,7 +763,8 @@ public class ConsoleActivity extends Activity {
 		});
 
 		urlscan = menu.add(R.string.console_menu_urlscan);
-		urlscan.setAlphabeticShortcut('u');
+		if (hardKeyboard)
+			urlscan.setAlphabeticShortcut('u');
 		urlscan.setIcon(android.R.drawable.ic_menu_search);
 		urlscan.setEnabled(activeTerminal);
 		urlscan.setOnMenuItemClickListener(new OnMenuItemClickListener() {
@@ -775,7 +789,8 @@ public class ConsoleActivity extends Activity {
 		});
 
 		resize = menu.add(R.string.console_menu_resize);
-		resize.setAlphabeticShortcut('s');
+		if (hardKeyboard)
+			resize.setAlphabeticShortcut('s');
 		resize.setIcon(android.R.drawable.ic_menu_crop);
 		resize.setEnabled(sessionOpen);
 		resize.setOnMenuItemClickListener(new OnMenuItemClickListener() {
@@ -860,10 +875,6 @@ public class ConsoleActivity extends Activity {
 		super.onPause();
 		Log.d(TAG, "onPause called");
 
-		// Allow the screen to dim and fall asleep.
-		if (wakelock != null && wakelock.isHeld())
-			wakelock.release();
-
 		if (forcedOrientation && bound != null)
 			bound.setResizeAllowed(false);
 	}
@@ -875,8 +886,11 @@ public class ConsoleActivity extends Activity {
 
 		// Make sure we don't let the screen fall asleep.
 		// This also keeps the Wi-Fi chipset from disconnecting us.
-		if (wakelock != null && prefs.getBoolean(PreferenceConstants.KEEP_ALIVE, true))
-			wakelock.acquire();
+		if (prefs.getBoolean(PreferenceConstants.KEEP_ALIVE, true)) {
+			getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+		} else {
+			getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+		}
 
 		configureOrientation();
 
@@ -917,8 +931,10 @@ public class ConsoleActivity extends Activity {
 				try {
 					Log.d(TAG, String.format("We couldnt find an existing bridge with URI=%s (nickname=%s), so creating one now", requested.toString(), requested.getFragment()));
 					requestedBridge = bound.openConnection(requested);
-				} catch (Exception e) {
-					Log.e(TAG, "Problem while trying to create new requested bridge from URI",e);
+				} catch(Exception e) {
+					Log.e(TAG, "Problem while trying to create new requested bridge from URI", e);
+					// TODO: We should display an error dialog here.
+					return;
 				}
 
 				requestedIndex = addNewTerminalView(requestedBridge);
