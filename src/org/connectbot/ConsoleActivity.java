@@ -116,7 +116,6 @@ public class ConsoleActivity extends Activity {
 	private Animation slide_left_in, slide_left_out, slide_right_in, slide_right_out, fade_stay_hidden, fade_out_delayed;
 
 	private Animation keyboard_fade_in, keyboard_fade_out;
-	private ImageView mKeyboardButton;
 	private float lastX, lastY;
 
 	private InputMethodManager inputManager;
