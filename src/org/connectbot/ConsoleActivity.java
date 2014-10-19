@@ -401,11 +401,7 @@ public class ConsoleActivity extends Activity {
 
 		inputManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
 
-<<<<<<< HEAD
-		final RelativeLayout keyboardGroup = (RelativeLayout) findViewById(R.id.keyboard_group);		
-=======
 		keyboardGroup = (RelativeLayout) findViewById(R.id.keyboard_group);
->>>>>>> 9c4eb4e35433571bf8d92d46530840f10fb6eed8
 
 		mKeyboardButton = (ImageView) findViewById(R.id.keyboard_button);
 		mKeyboardButton.setOnClickListener(new OnClickListener() {
