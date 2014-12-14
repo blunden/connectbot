@@ -454,6 +454,7 @@ public class ConsoleActivity extends Activity {
 		});
 
 		// detect fling gestures to switch between terminals
+		@SuppressWarnings("deprecation")
 		final GestureDetector detect = new GestureDetector(new GestureDetector.SimpleOnGestureListener() {
 			private float totalY = 0;
 
