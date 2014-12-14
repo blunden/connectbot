@@ -211,4 +211,13 @@
   <string name="color_green">grön</string>
   <string name="color_blue">blå</string>
   <string name="color_gray">grå</string>
+  
+  <string name="pref_swipe_title">Swipe Vänster/Höger</string>
+  <string name="pref_swipe_summary">Definierar swipe-typen</string>
+  <string name="list_swipe_default">Standard</string>
+  <string name="list_swipe_irssi_channel">Swipe mellan irssi-kanaler</string>
+  <string name="list_swipe_irssi_channel_inverted">Swipe mellan irssi-kanaler (inverterad)</string>
+
+  <string name="pref_longpressmenu_title">Popup-meny</string>
+  <string name="pref_longpressmenu_summary">Aktiverar popup-menyn</string>
 </resources>
