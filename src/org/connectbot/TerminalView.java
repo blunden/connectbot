@@ -26,6 +26,7 @@ import org.connectbot.service.FontSizeChangedListener;
 import org.connectbot.service.TerminalBridge;
 import org.connectbot.service.TerminalKeyListener;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -172,6 +173,7 @@ public class TerminalView extends View implements FontSizeChangedListener {
 		scaleMatrix.setRectToRect(tempSrc, tempDst, scaleType);
 	}
 
+	@SuppressLint("WrongCall") // Suppress the warning since this does not refer to Android's onDraw()
 	@Override
 	public void onDraw(Canvas canvas) {
 		if(bridge.bitmap != null) {
