@@ -540,6 +540,74 @@ public class ConsoleActivity extends Activity {
 				return false;
 			}
 
+			/*
+			 * Enables doubletap = ESC+a
+			 *
+			 * @see
+			 * android.view.GestureDetector.SimpleOnGestureListener#
+			 * onDoubleTap(android.view.MotionEvent)
+			 *
+			 * @return boolean
+			 */
+			@Override
+			public boolean onDoubleTap(MotionEvent e) {
+				View flip = findCurrentView(R.id.console_flip);
+				if (flip == null) return false;
+				TerminalView terminal = (TerminalView) flip;
+
+				((vt320) terminal.bridge.buffer).keyTyped(vt320.KEY_ESCAPE, ' ', 0);
+				((vt320) terminal.bridge.buffer).write('a');
+
+				return true;
+			}
+
+			/*
+			 * Enables longpress and popups menu
+			 *
+			 * @see
+			 * android.view.GestureDetector.SimpleOnGestureListener#
+			 * onLongPress(android.view.MotionEvent)
+			 *
+			 * @return void
+			 */
+			@Override
+			public void onLongPress(MotionEvent e) {
+				if(prefs.getBoolean("longPressMenu", false)) {
+					final CharSequence[] items = { "Alt+?", "TAB", "Ctrl+a+d", "Ctrl+d", "Ctrl+c" };
+
+					AlertDialog.Builder builder = new AlertDialog.Builder(ConsoleActivity.this);
+					builder.setTitle("Send an action");
+					builder.setItems(items,
+							new DialogInterface.OnClickListener() {
+								public void onClick(DialogInterface dialog, int item) {
+									View flip = findCurrentView(R.id.console_flip);
+									if (flip == null) return;
+									TerminalView terminal = (TerminalView) flip;
+
+									if (item == 0) {
+										((vt320) terminal.bridge.buffer).keyTyped(vt320.KEY_ESCAPE, ' ', 0);
+										terminal.bridge.tryKeyVibrate();
+									} else if (item == 1) {
+										((vt320) terminal.bridge.buffer).write(0x09);
+										terminal.bridge.tryKeyVibrate();
+									} else if (item == 2) {
+										((vt320) terminal.bridge.buffer).write(0x01);
+										((vt320) terminal.bridge.buffer).write('d');
+										terminal.bridge.tryKeyVibrate();
+									} else if (item == 3) {
+										((vt320) terminal.bridge.buffer).write(0x04);
+										terminal.bridge.tryKeyVibrate();
+									} else if (item == 4) {
+										((vt320) terminal.bridge.buffer).write(0x03);
+										terminal.bridge.tryKeyVibrate();
+									}
+								}
+							});
+					AlertDialog alert = builder.create();
+
+					builder.show();
+				}
+			}
 
 		});
 
@@ -968,38 +1036,61 @@ public class ConsoleActivity extends Activity {
 	}
 
 	protected void shiftCurrentTerminal(final int direction) {
-		View overlay;
-		synchronized (flip) {
-			boolean shouldAnimate = flip.getChildCount() > 1;
+		if(prefs.getString("swipe", "").equals("default")) {
+			View overlay;
+			synchronized (flip) {
+				boolean shouldAnimate = flip.getChildCount() > 1;
 
-			// Only show animation if there is something else to go to.
-			if (shouldAnimate) {
-				// keep current overlay from popping up again
-				overlay = findCurrentView(R.id.terminal_overlay);
-				if (overlay != null)
-					overlay.startAnimation(fade_stay_hidden);
+				// Only show animation if there is something else to go to.
+				if (shouldAnimate) {
+					// keep current overlay from popping up again
+					overlay = findCurrentView(R.id.terminal_overlay);
+					if (overlay != null)
+						overlay.startAnimation(fade_stay_hidden);
 
-				if (direction == SHIFT_LEFT) {
-					flip.setInAnimation(slide_left_in);
-					flip.setOutAnimation(slide_left_out);
-					flip.showNext();
-				} else if (direction == SHIFT_RIGHT) {
-					flip.setInAnimation(slide_right_in);
-					flip.setOutAnimation(slide_right_out);
-					flip.showPrevious();
+					if (direction == SHIFT_LEFT) {
+						flip.setInAnimation(slide_left_in);
+						flip.setOutAnimation(slide_left_out);
+						flip.showNext();
+					} else if (direction == SHIFT_RIGHT) {
+						flip.setInAnimation(slide_right_in);
+						flip.setOutAnimation(slide_right_out);
+						flip.showPrevious();
+					}
+				}
+
+				ConsoleActivity.this.updateDefault();
+
+				if (shouldAnimate) {
+					// show overlay on new slide and start fade
+					overlay = findCurrentView(R.id.terminal_overlay);
+					if (overlay != null)
+						overlay.startAnimation(fade_out_delayed);
+				}
+
+				updatePromptVisible();
+			}
+		} else {
+			int keyCode = 0;
+			View flip = findCurrentView(R.id.console_flip);
+			if(flip == null) return;
+			TerminalView terminal = (TerminalView)flip;
+			
+			if(direction == SHIFT_LEFT) {
+				if(prefs.getString("swipe", "").equals("channel_swipe_inverted")) {
+					keyCode = vt320.KEY_RIGHT;
+				} else {
+					keyCode = vt320.KEY_LEFT;
+				}
+			} else if(direction == SHIFT_RIGHT) {
+				if(prefs.getString("swipe", "").equals("channel_swipe_inverted")) {
+					keyCode = vt320.KEY_LEFT;
+				} else {
+					keyCode = vt320.KEY_RIGHT;
 				}
 			}
 
-			ConsoleActivity.this.updateDefault();
-
-			if (shouldAnimate) {
-				// show overlay on new slide and start fade
-				overlay = findCurrentView(R.id.terminal_overlay);
-				if (overlay != null)
-					overlay.startAnimation(fade_out_delayed);
-			}
-
-			updatePromptVisible();
+			terminal.bridge.tryKeyVibrate();
 		}
 	}
 
